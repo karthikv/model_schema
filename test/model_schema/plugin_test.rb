@@ -17,13 +17,10 @@ end
 
 class PluginTest < BaseTest
   def before_all
+    @db = Sequel::Database.connect(ENV['DB_URL'])
     Sequel::Model.plugin(ModelSchema::Plugin)
-    @db = Sequel.connect(ENV['DB_URL'])
+    Sequel::Model.db = @db
     @db.cache_schema = false
-  end
-
-  def klass
-    ModelSchema::SchemaError
   end
 
   def around
@@ -69,16 +66,14 @@ class PluginTest < BaseTest
       Class.new(Sequel::Model(simple_table)) do
         model_schema {}
       end
-    rescue klass => error
+    rescue error_class => error
       generator = @db.send(:dump_table_generator, simple_table)
       schema_diffs = error.schema_diffs
 
-      assert_includes schema_diffs, :type => klass::COL_EXTRA,
-                                    :col_name => :name,
-                                    :generator => generator
-      assert_includes schema_diffs, :type => klass::COL_EXTRA,
-                                    :col_name => :value,
-                                    :generator => generator
+      assert_includes schema_diffs, create_extra_diff(field_columns, generator,
+                                                      :name => :name)
+      assert_includes schema_diffs, create_extra_diff(field_columns, generator,
+                                                      :name => :value)
       assert_equal schema_diffs.length, 2
     else
       flunk 'Extra column not detected'
@@ -101,15 +96,13 @@ class PluginTest < BaseTest
       Class.new(Sequel::Model(simple_table)) do
         model_schema(&table_proc)
       end
-    rescue klass => error
+    rescue error_class => error
       schema_diffs = error.schema_diffs
 
-      assert_includes schema_diffs, :type => klass::COL_MISSING,
-                                    :col_name => :is_valid,
-                                    :generator => generator
-      assert_includes schema_diffs, :type => klass::COL_MISSING,
-                                    :col_name => :completed_at,
-                                    :generator => generator
+      assert_includes schema_diffs, create_missing_diff(field_columns, generator,
+                                                        :name => :is_valid)
+      assert_includes schema_diffs, create_missing_diff(field_columns, generator,
+                                                        :name => :completed_at)
     else
       flunk 'Missing column not detected'
     end
@@ -128,18 +121,14 @@ class PluginTest < BaseTest
       Class.new(Sequel::Model(simple_table)) do
         model_schema(&table_proc)
       end
-    rescue klass => error
+    rescue error_class => error
       db_generator = @db.send(:dump_table_generator, simple_table)
       schema_diffs = error.schema_diffs
 
-      assert_includes schema_diffs, :type => klass::COL_MISMATCH,
-                                    :col_name => :name,
-                                    :db_generator => db_generator,
-                                    :exp_generator => exp_generator
-      assert_includes schema_diffs, :type => klass::COL_MISMATCH,
-                                    :col_name => :value,
-                                    :db_generator => db_generator,
-                                    :exp_generator => exp_generator
+      assert_includes schema_diffs, create_mismatch_diff(field_columns, db_generator,
+                                                         exp_generator, :name => :name)
+      assert_includes schema_diffs, create_mismatch_diff(field_columns, db_generator,
+                                                         exp_generator, :name => :value)
       assert_equal schema_diffs.length, 2
     else
       flunk 'Extra column not detected'

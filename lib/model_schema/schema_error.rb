@@ -1,8 +1,9 @@
 module ModelSchema
+  # TODO: comment this
   class SchemaError < StandardError
-    COL_EXTRA = :extra
-    COL_MISSING = :missing
-    COL_MISMATCH = :mismatch
+    TYPE_EXTRA = :extra
+    TYPE_MISSING = :missing
+    TYPE_MISMATCH = :mismatch
 
     attr_reader :schema_diffs
 
@@ -12,54 +13,50 @@ module ModelSchema
       @cached_generator_dumps = {}
     end
 
-    def dump_col(generator, col_name)
-      index = generator.columns.find_index {|c| c[:name] == col_name}
-      if !@cached_generator_dumps.key?(generator)
-        lines = generator.dump_columns.lines.map(&:strip)
-        @cached_generator_dumps[generator] = lines
-      end
-
-      @cached_generator_dumps[generator][index]
+    def dump_single(field, generator, elem)
+      index = generator.send(field).find_index(elem)
+      lines = generator.send(:"dump_#{field}").lines.map(&:strip)
+      lines[index]
     end
 
-    def diffs_by_type(type)
-      @schema_diffs.select {|diff| diff[:type] == type}
+    def diffs_by_field_type(field, type)
+      @schema_diffs.select {|diff| diff[:field] == field && diff[:type] == type}
     end
 
-    def dump_extra_diffs
-      extra_diffs = diffs_by_type(COL_EXTRA)
+    def dump_extra_diffs(field)
+      extra_diffs = diffs_by_field_type(field, TYPE_EXTRA)
 
       if extra_diffs.length > 0
-        header = "Table #{@table_name} has extra columns:\n"
+        header = "Table #{@table_name} has extra #{field}:\n"
         diff_str = extra_diffs.map do |diff|
-          dump_col(diff[:generator], diff[:col_name])
+          dump_single(field, diff[:generator], diff[:elem])
         end.join("\n\t")
 
         "#{header}\n\t#{diff_str}\n"
       end
     end
 
-    def dump_missing_diffs
-      missing_diffs = diffs_by_type(COL_MISSING)
+    def dump_missing_diffs(field)
+      missing_diffs = diffs_by_field_type(field, TYPE_MISSING)
 
       if missing_diffs.length > 0
-        header = "Table #{@table_name} is missing columns:\n"
+        header = "Table #{@table_name} is missing #{field}:\n"
         diff_str = missing_diffs.map do |diff|
-          dump_col(diff[:generator], diff[:col_name])
+          dump_single(field, diff[:generator], diff[:elem])
         end.join("\n\t")
 
         "#{header}\n\t#{diff_str}\n"
       end
     end
 
-    def dump_mismatch_diffs
-      mismatch_diffs = diffs_by_type(COL_MISMATCH)
+    def dump_mismatch_diffs(field)
+      mismatch_diffs = diffs_by_field_type(field, TYPE_MISMATCH)
 
       if mismatch_diffs.length > 0
-        header = "Table #{@table_name} has mismatched columns:\n"
+        header = "Table #{@table_name} has mismatched #{field}:\n"
         diff_str = mismatch_diffs.map do |diff|
-          "actual:    #{dump_col(diff[:db_generator], diff[:col_name])}\n\t" +
-          "expected:  #{dump_col(diff[:exp_generator], diff[:col_name])}"
+          "actual:    #{dump_single(field, diff[:db_generator], diff[:db_elem])}\n\t" +
+          "expected:  #{dump_single(field, diff[:exp_generator], diff[:exp_elem])}"
         end.join("\n\n\t")
 
         "#{header}\n\t#{diff_str}\n"
@@ -67,7 +64,11 @@ module ModelSchema
     end
 
     def to_s
-      parts = [dump_extra_diffs, dump_missing_diffs, dump_mismatch_diffs]
+      parts = FIELDS.flat_map do |field|
+        [dump_extra_diffs(field),
+         dump_missing_diffs(field),
+         dump_mismatch_diffs(field)]
+      end
       parts.compact.join("\n")
     end
   end

@@ -1,5 +1,10 @@
 module ModelSchema
-  DEFAULT_COL_OPTS = {
+  FIELD_COLUMNS = :columns
+  FIELD_INDEXES = :indexes
+  FIELD_CONSTRAINTS = :constraints
+  FIELDS = [FIELD_COLUMNS, FIELD_INDEXES, FIELD_CONSTRAINTS]
+
+  DEFAULT_COL = {
     :name => nil,
     :type => nil,
     :collate => nil,

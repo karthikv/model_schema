@@ -22,33 +22,38 @@ class SchemaErrorTest < BaseTest
     end
   end
 
-  def test_dump_col
-    generator = create_table_generator
-    assert_equal 'Integer :type', instance.dump_col(generator, :type)
+  def dump_column(generator, name)
+    instance.dump_single(field_columns, generator,
+                         find_match(generator.columns, :name => name))
   end
 
-  def test_dump_col_with_options
+  def test_dump_single_column
+    generator = create_table_generator
+    assert_equal 'Integer :type', dump_column(generator, :type)
+  end
+
+  def test_dump_single_column_with_options
     generator = create_table_generator
     assert_equal 'String :first_name, :text=>true, :null=>false',
-                 instance.dump_col(generator, :first_name)
+                 dump_column(generator, :first_name)
   end
 
-  def test_dump_col_foreign_key
+  def test_dump_single_foreign_key
     generator = create_table_generator
     fk_str = %(foreign_key :organization_id, :organizations, :null=>false, 
                :key=>[:id], :on_delete=>:cascade).gsub(/\n\s+/, '')
-    assert_equal fk_str, instance.dump_col(generator, :organization_id)
+    assert_equal fk_str, dump_column(generator, :organization_id)
   end
 
-  def test_dump_col_primary_key
+  def test_dump_single_primary_key
     generator = create_table_generator
-    assert_equal 'primary_key :id', instance.dump_col(generator, :id)
+    assert_equal 'primary_key :id', dump_column(generator, :id)
   end
 
-  def test_dump_col_custom_type
+  def test_dump_single_custom_type
     generator = create_table_generator
     assert_equal 'column :emails, "text[]", :null=>false',
-                 instance.dump_col(generator, :emails)
+                 dump_column(generator, :emails)
   end
 
   def instance(schema_diffs=[])
@@ -57,36 +62,26 @@ class SchemaErrorTest < BaseTest
 
   def test_col_extra
     generator = create_table_generator
-    schema_diffs = [{:type => ModelSchema::SchemaError::COL_EXTRA,
-                     :generator => generator,
-                     :col_name => :created_at},
-                    {:type => ModelSchema::SchemaError::COL_EXTRA,
-                     :generator => generator,
-                     :col_name => :first_name}]
-    error = instance(schema_diffs)
-    message = error.to_s
+    schema_diffs = [create_extra_diff(field_columns, generator, :name => :created_at),
+                    create_extra_diff(field_columns, generator, :name => :first_name)]
+    message = instance(schema_diffs).to_s
 
     assert_includes message, @table_name
     assert_includes message, 'extra columns'
-    assert_includes message, error.dump_col(generator, :created_at)
-    assert_includes message, error.dump_col(generator, :first_name)
+    assert_includes message, dump_column(generator, :created_at)
+    assert_includes message, dump_column(generator, :first_name)
   end
 
   def test_col_missing
     generator = create_table_generator
-    schema_diffs = [{:type => ModelSchema::SchemaError::COL_MISSING,
-                     :generator => generator,
-                     :col_name => :type},
-                    {:type => ModelSchema::SchemaError::COL_MISSING,
-                     :generator => generator,
-                     :col_name => :updated_at}]
-    error = instance(schema_diffs)
-    message = error.to_s
+    schema_diffs = [create_missing_diff(field_columns, generator, :name => :type),
+                    create_missing_diff(field_columns, generator, :name => :updated_at)]
+    message = instance(schema_diffs).to_s
 
     assert_includes message, @table_name
     assert_includes message, 'missing columns'
-    assert_includes message, error.dump_col(generator, :type)
-    assert_includes message, error.dump_col(generator, :updated_at)
+    assert_includes message, dump_column(generator, :type)
+    assert_includes message, dump_column(generator, :updated_at)
   end
 
   def create_exp_table_generator
@@ -101,56 +96,42 @@ class SchemaErrorTest < BaseTest
     generator = create_table_generator
     exp_generator = create_exp_table_generator
 
-    schema_diffs = [{:type => ModelSchema::SchemaError::COL_MISMATCH,
-                     :db_generator => generator,
-                     :exp_generator => exp_generator,
-                     :col_name => :organization_id},
-                    {:type => ModelSchema::SchemaError::COL_MISMATCH,
-                     :db_generator => generator,
-                     :exp_generator => exp_generator,
-                     :col_name => :emails}]
-    error = instance(schema_diffs)
-    message = error.to_s
+    schema_diffs = [create_mismatch_diff(field_columns, generator, exp_generator,
+                                         :name => :organization_id),
+                    create_mismatch_diff(field_columns, generator, exp_generator,
+                                         :name => :emails)]
+    message = instance(schema_diffs).to_s
 
     assert_includes message, @table_name
     assert_includes message, 'mismatched columns'
 
-    assert_includes message, error.dump_col(generator, :organization_id)
-    assert_includes message, error.dump_col(exp_generator, :organization_id)
-    assert_includes message, error.dump_col(generator, :emails)
-    assert_includes message, error.dump_col(exp_generator, :emails)
+    assert_includes message, dump_column(generator, :organization_id)
+    assert_includes message, dump_column(exp_generator, :organization_id)
+    assert_includes message, dump_column(generator, :emails)
+    assert_includes message, dump_column(exp_generator, :emails)
   end
 
   def test_col_all
     generator = create_table_generator
     exp_generator = create_exp_table_generator
 
-    schema_diffs = [{:type => ModelSchema::SchemaError::COL_EXTRA,
-                     :generator => generator,
-                     :col_name => :type},
-                    {:type => ModelSchema::SchemaError::COL_MISSING,
-                     :generator => generator,
-                     :col_name => :id},
-                    {:type => ModelSchema::SchemaError::COL_MISSING,
-                     :generator => generator,
-                     :col_name => :first_name},
-                    {:type => ModelSchema::SchemaError::COL_MISMATCH,
-                     :db_generator => generator,
-                     :exp_generator => exp_generator,
-                     :col_name => :created_at}]
-    error = instance(schema_diffs)
-    message = error.to_s
+    schema_diffs = [create_extra_diff(field_columns, generator, :name => :type),
+                    create_missing_diff(field_columns, generator, :name => :id),
+                    create_missing_diff(field_columns, generator, :name => :first_name),
+                    create_mismatch_diff(field_columns, generator, exp_generator,
+                                         :name => :created_at)]
+    message = instance(schema_diffs).to_s
 
     assert_includes message, @table_name
     assert_includes message, 'extra columns'
-    assert_includes message, error.dump_col(generator, :type)
+    assert_includes message, dump_column(generator, :type)
 
     assert_includes message, 'missing columns'
-    assert_includes message, error.dump_col(generator, :id)
-    assert_includes message, error.dump_col(generator, :first_name)
+    assert_includes message, dump_column(generator, :id)
+    assert_includes message, dump_column(generator, :first_name)
 
     assert_includes message, 'mismatched columns'
-    assert_includes message, error.dump_col(generator, :created_at)
-    assert_includes message, error.dump_col(exp_generator, :created_at)
+    assert_includes message, dump_column(generator, :created_at)
+    assert_includes message, dump_column(exp_generator, :created_at)
   end
 end
