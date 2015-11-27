@@ -66,11 +66,29 @@ class PluginTest < BaseTest
     simple_table = create_simple_table
 
     Class.new(Sequel::Model(simple_table)) do
-      model_schema(:indexes => false) do
+      model_schema(:no_indexes => true) do
         varchar :name, :size => 50
         column :value, 'integer', :null => false
       end
     end
+  end
+
+  def test_disable_simple_schema
+    simple_table = create_simple_table
+
+    Class.new(Sequel::Model(simple_table)) do
+      model_schema(:disable => true) {}
+    end
+  end
+
+  def test_disable_simple_schema_env
+    ENV[ModelSchema::DISABLE_MODEL_SCHEMA_KEY] = '1'
+    simple_table = create_simple_table
+
+    Class.new(Sequel::Model(simple_table)) do
+      model_schema {}
+    end
+    ENV.delete(ModelSchema::DISABLE_MODEL_SCHEMA_KEY)
   end
 
   def test_simple_schema_extra_col
@@ -296,7 +314,9 @@ class PluginTest < BaseTest
 
                complex_table_str, 'mismatched indexes',
                [dump_index(db_generator, :interests),
-                dump_index(exp_generator, :amount)]]
+                dump_index(exp_generator, :amount)],
+      
+               'disable', ModelSchema::DISABLE_MODEL_SCHEMA_KEY, '=1']
 
       assert_includes_with_order error.message, parts
     else

@@ -7,7 +7,13 @@ module ModelSchema
     module ClassMethods
       # Checks if the model's table schema matches the schema specified by the
       # given block. Raises a SchemaError if this isn't the case.
+      #
+      # options:
+      # :disable => true to disable schema checks;
+      #             you may also set the ENV variable DISABLE_MODEL_SCHEMA=1
+      # :no_indexes => true to disable index checks
       def model_schema(options={}, &block)
+        return if ENV[DISABLE_MODEL_SCHEMA_KEY] == '1' || options[:disable]
         db.extension(:schema_dumper)
 
         # table generators are Sequel's way of representing schemas
@@ -15,7 +21,7 @@ module ModelSchema
         exp_generator = db.create_table_generator(&block)
         
         schema_errors = check_all(FIELD_COLUMNS, db_generator, exp_generator)
-        if options[:indexes] != false
+        if !options[:no_indexes]
           schema_errors += check_all(FIELD_INDEXES, db_generator, exp_generator)
         end
         

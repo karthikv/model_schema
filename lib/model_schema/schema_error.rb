@@ -100,7 +100,13 @@ module ModelSchema
          dump_missing_diffs(field),
          dump_mismatch_diffs(field)]
       end
-      "#{@table_name} does not match expected schema.\n\n#{parts.compact.join("\n")}"
+
+      [
+        "Table #{@table_name} does not match the expected schema.\n\n",
+        parts.compact.join("\n"),
+        "\nYou may disable schema checks by passing :disable => true to model_",
+        "schema or by setting the ENV variable #{DISABLE_MODEL_SCHEMA_KEY}=1.\n"
+      ].join
     end
   end
 end

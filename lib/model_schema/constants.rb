@@ -1,4 +1,7 @@
 module ModelSchema
+  # ENV variable name to disable schema checks.
+  DISABLE_MODEL_SCHEMA_KEY = 'DISABLE_MODEL_SCHEMA'
+
   # field types representing table columns and table indexes
   FIELD_COLUMNS = :columns
   FIELD_INDEXES = :indexes

@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.authors = ['Karthik Viswanathan']
   spec.email = ['karthik.ksv@gmail.com']
 
-  spec.summary = %q{Define expected schema (columns) for a Sequel::Model class.}
+  spec.summary = %(Annotate a Sequel Model with its expected schema (columns/indexes).)
   spec.homepage = 'TODO'
   spec.license = 'MIT'
 

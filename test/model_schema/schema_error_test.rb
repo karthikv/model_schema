@@ -90,7 +90,9 @@ class SchemaErrorTest < BaseTest
 
              @table_name, 'extra indexes',
              [dump_index(generator, :type),
-              dump_index(generator, :created_at)]]
+              dump_index(generator, :created_at)],
+
+             'disable', ModelSchema::DISABLE_MODEL_SCHEMA_KEY, '=1']
 
     assert_includes_with_order message, parts
   end
@@ -111,7 +113,9 @@ class SchemaErrorTest < BaseTest
 
              @table_name, 'missing indexes',
              [dump_index(generator, :created_at),
-              dump_index(generator, [:first_name, :emails])]]
+              dump_index(generator, [:first_name, :emails])],
+
+             'disable', ModelSchema::DISABLE_MODEL_SCHEMA_KEY, '=1']
 
     assert_includes_with_order message, parts
   end
@@ -151,7 +155,9 @@ class SchemaErrorTest < BaseTest
              [dump_index(generator, :created_at),
               dump_index(exp_generator, :updated_at),
               dump_index(generator, [:first_name, :emails]),
-              dump_index(exp_generator, [:first_name, :emails])]]
+              dump_index(exp_generator, [:first_name, :emails])],
+
+             'disable', ModelSchema::DISABLE_MODEL_SCHEMA_KEY, '=1']
 
     assert_includes_with_order message, parts
   end
@@ -189,7 +195,9 @@ class SchemaErrorTest < BaseTest
 
              @table_name, 'mismatched indexes',
              [dump_index(generator, [:first_name, :emails]),
-              dump_index(exp_generator, [:first_name, :emails])]]
+              dump_index(exp_generator, [:first_name, :emails])],
+
+             'disable', ModelSchema::DISABLE_MODEL_SCHEMA_KEY, '=1']
 
     assert_includes_with_order message, parts
   end
