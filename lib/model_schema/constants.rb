@@ -1,8 +1,10 @@
 module ModelSchema
+  # field types representing table columns and table indexes
   FIELD_COLUMNS = :columns
   FIELD_INDEXES = :indexes
   FIELDS = [FIELD_COLUMNS, FIELD_INDEXES]
 
+  # default column parameters
   DEFAULT_COL = {
     :name => nil,
     :type => nil,
@@ -26,6 +28,7 @@ module ModelSchema
     :only_time => nil,
   }
 
+  # default index parameters
   DEFAULT_INDEX = {
     :columns => nil,
     :name => nil,

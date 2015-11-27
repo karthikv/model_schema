@@ -1,11 +1,16 @@
 require 'sequel'
 
 module ModelSchema
+  # Allows you to define an expected schema for a Sequel::Model class and fail
+  # if that schema is not met.
   module Plugin
     module ClassMethods
+      # Checks if the model's table schema matches the schema specified by the
+      # given block. Raises a SchemaError if this isn't the case.
       def model_schema(options={}, &block)
         db.extension(:schema_dumper)
 
+        # table generators are Sequel's way of representing schemas
         db_generator = table_generator
         exp_generator = db.create_table_generator(&block)
         
@@ -147,7 +152,7 @@ module ModelSchema
 
       # Check if the given database element matches the expected element.
       #
-      # field: what to check: :columns, :constraints, or :indexes
+      # field: FIELD_COLUMNS for columns or FIELD_INDEXES for indexes
       # opts:
       #   :db_generator => db table generator
       #   :exp_generator => expected table generator
@@ -191,7 +196,9 @@ module ModelSchema
         when FIELD_INDEXES
           db_elem_defaults = DEFAULT_INDEX.merge(db_elem)
           exp_elem_defaults = DEFAULT_INDEX.merge(exp_elem)
+          return error if db_elem_defaults.length != exp_elem_defaults.length
 
+          # if no index name is specified, accept any name
           db_elem_defaults.delete(:name) if !exp_elem_defaults[:name]
           match = db_elem_defaults.all? {|key, value| value == exp_elem_defaults[key]}
         end
