@@ -1,8 +1,7 @@
 module ModelSchema
   FIELD_COLUMNS = :columns
   FIELD_INDEXES = :indexes
-  FIELD_CONSTRAINTS = :constraints
-  FIELDS = [FIELD_COLUMNS, FIELD_INDEXES, FIELD_CONSTRAINTS]
+  FIELDS = [FIELD_COLUMNS, FIELD_INDEXES]
 
   DEFAULT_COL = {
     :name => nil,
@@ -25,5 +24,13 @@ module ModelSchema
     :fixed => nil,
     :size => nil,
     :only_time => nil,
+  }
+
+  DEFAULT_INDEX = {
+    :columns => nil,
+    :name => nil,
+    :type => nil,
+    :unique => nil,
+    :where => nil,
   }
 end

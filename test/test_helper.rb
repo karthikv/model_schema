@@ -1,3 +1,5 @@
+require 'bundler/setup'
+
 $LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
 require 'model_schema'
 
@@ -25,6 +27,10 @@ class BaseTest < Minitest::Test
 
   def field_columns
     ModelSchema::FIELD_COLUMNS
+  end
+
+  def field_indexes
+    ModelSchema::FIELD_INDEXES
   end
 
   def find_match(array, condition)
@@ -57,5 +63,43 @@ class BaseTest < Minitest::Test
                                       :exp_generator => exp_generator,
                                       :db_elem => db_elem,
                                       :exp_elem => exp_elem)
+  end
+
+  def schema_error(schema_diffs=[])
+    ModelSchema::SchemaError.new(@table_name, schema_diffs)
+  end
+
+  def dump_column(generator, name)
+    schema_error.dump_single(field_columns, generator,
+                             find_match(generator.columns, :name => name))
+  end
+
+  def dump_index(generator, columns)
+    columns = columns.is_a?(Array) ? columns : [columns]
+    schema_error.dump_single(field_indexes, generator,
+                             find_match(generator.indexes, :columns => columns))
+  end
+
+  def assert_includes_with_order(message, parts)
+    parts.each do |part|
+      if part.is_a?(String)
+        assert_includes message, part
+        index = message.index(part)
+        message = message[(index + part.length)..-1]
+      else
+        # part is an array of strings, each of which must be included in
+        # message, but in any order with respect to one another
+        pieces = part
+        end_index = 0
+
+        pieces.each do |p|
+          assert_includes message, p
+          cur_end_index = message.index(p) + p.length
+          end_index = [end_index, cur_end_index].max
+        end
+
+        message = message[end_index..-1]
+      end
+    end
   end
 end

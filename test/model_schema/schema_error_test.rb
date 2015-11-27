@@ -19,12 +19,12 @@ class SchemaErrorTest < BaseTest
       column :emails, 'text[]', :null => false
       DateTime :created_at, :null => false
       DateTime :updated_at
-    end
-  end
 
-  def dump_column(generator, name)
-    instance.dump_single(field_columns, generator,
-                         find_match(generator.columns, :name => name))
+      index :type
+      index :created_at, :name => :created_at_index
+      index [:first_name, :emails], :unique => true, :type => :gin,
+                                    :where => {:type => 1}
+    end
   end
 
   def test_dump_single_column
@@ -56,32 +56,64 @@ class SchemaErrorTest < BaseTest
                  dump_column(generator, :emails)
   end
 
-  def instance(schema_diffs=[])
-    ModelSchema::SchemaError.new(@table_name, schema_diffs)
+  def test_dump_single_index
+    generator = create_table_generator
+    assert_equal 'index [:type]', dump_index(generator, :type)
+  end
+
+  def test_dump_single_index_with_options
+    generator = create_table_generator
+    assert_equal 'index [:created_at], :name=>:created_at_index',
+                 dump_index(generator, :created_at)
+  end
+
+  def test_dump_single_index_complex
+    generator = create_table_generator
+    index_str = %(index [:first_name, :emails], :unique=>true, :type=>:gin, 
+                  :where=>{:type=>1}).gsub(/\n\s+/, '')
+    assert_equal index_str, dump_index(generator, [:first_name, :emails])
   end
 
   def test_col_extra
     generator = create_table_generator
     schema_diffs = [create_extra_diff(field_columns, generator, :name => :created_at),
-                    create_extra_diff(field_columns, generator, :name => :first_name)]
-    message = instance(schema_diffs).to_s
+                    create_extra_diff(field_columns, generator, :name => :first_name),
+                    create_extra_diff(field_indexes, generator,
+                                      :columns => [:type]),
+                    create_extra_diff(field_indexes, generator,
+                                      :columns => [:created_at])]
 
-    assert_includes message, @table_name
-    assert_includes message, 'extra columns'
-    assert_includes message, dump_column(generator, :created_at)
-    assert_includes message, dump_column(generator, :first_name)
+    message = schema_error(schema_diffs).to_s
+    parts = [@table_name, 'extra columns',
+             [dump_column(generator, :created_at),
+              dump_column(generator, :first_name)],
+
+             @table_name, 'extra indexes',
+             [dump_index(generator, :type),
+              dump_index(generator, :created_at)]]
+
+    assert_includes_with_order message, parts
   end
 
   def test_col_missing
     generator = create_table_generator
     schema_diffs = [create_missing_diff(field_columns, generator, :name => :type),
-                    create_missing_diff(field_columns, generator, :name => :updated_at)]
-    message = instance(schema_diffs).to_s
+                    create_missing_diff(field_columns, generator, :name => :updated_at),
+                    create_missing_diff(field_indexes, generator,
+                                        :columns => [:created_at]),
+                    create_missing_diff(field_indexes, generator,
+                                        :columns => [:first_name, :emails])]
 
-    assert_includes message, @table_name
-    assert_includes message, 'missing columns'
-    assert_includes message, dump_column(generator, :type)
-    assert_includes message, dump_column(generator, :updated_at)
+    message = schema_error(schema_diffs).to_s
+    parts = [@table_name, 'missing columns',
+             [dump_column(generator, :type),
+              dump_column(generator, :updated_at)],
+
+             @table_name, 'missing indexes',
+             [dump_index(generator, :created_at),
+              dump_index(generator, [:first_name, :emails])]]
+
+    assert_includes_with_order message, parts
   end
 
   def create_exp_table_generator
@@ -89,6 +121,9 @@ class SchemaErrorTest < BaseTest
       foreign_key :organization_id, :org
       String :emails, :text => true, :null => false, :unique => true
       DateTime :created_at
+
+      index :updated_at, :name => :created_at_index
+      index [:first_name, :emails], :unique => true, :where => {:type => 2}
     end
   end
 
@@ -99,16 +134,26 @@ class SchemaErrorTest < BaseTest
     schema_diffs = [create_mismatch_diff(field_columns, generator, exp_generator,
                                          :name => :organization_id),
                     create_mismatch_diff(field_columns, generator, exp_generator,
-                                         :name => :emails)]
-    message = instance(schema_diffs).to_s
+                                         :name => :emails),
+                    create_mismatch_diff(field_indexes, generator, exp_generator,
+                                         :name => :created_at_index),
+                    create_mismatch_diff(field_indexes, generator, exp_generator,
+                                         :columns => [:first_name, :emails])]
 
-    assert_includes message, @table_name
-    assert_includes message, 'mismatched columns'
+    message = schema_error(schema_diffs).to_s
+    parts = [@table_name, 'mismatched columns',
+             [dump_column(generator, :organization_id),
+              dump_column(exp_generator, :organization_id),
+              dump_column(generator, :emails),
+              dump_column(exp_generator, :emails)],
 
-    assert_includes message, dump_column(generator, :organization_id)
-    assert_includes message, dump_column(exp_generator, :organization_id)
-    assert_includes message, dump_column(generator, :emails)
-    assert_includes message, dump_column(exp_generator, :emails)
+             @table_name, 'mismatched indexes',
+             [dump_index(generator, :created_at),
+              dump_index(exp_generator, :updated_at),
+              dump_index(generator, [:first_name, :emails]),
+              dump_index(exp_generator, [:first_name, :emails])]]
+
+    assert_includes_with_order message, parts
   end
 
   def test_col_all
@@ -116,22 +161,36 @@ class SchemaErrorTest < BaseTest
     exp_generator = create_exp_table_generator
 
     schema_diffs = [create_extra_diff(field_columns, generator, :name => :type),
-                    create_missing_diff(field_columns, generator, :name => :id),
-                    create_missing_diff(field_columns, generator, :name => :first_name),
+                    create_extra_diff(field_indexes, generator,
+                                      :columns => [:created_at]),
+                    create_missing_diff(field_columns, exp_generator,
+                                        :name => :organization_id),
+                    create_missing_diff(field_columns, generator,
+                                        :name => :first_name),
                     create_mismatch_diff(field_columns, generator, exp_generator,
-                                         :name => :created_at)]
-    message = instance(schema_diffs).to_s
+                                         :name => :created_at),
+                    create_mismatch_diff(field_indexes, generator, exp_generator,
+                                         :columns => [:first_name, :emails])]
 
-    assert_includes message, @table_name
-    assert_includes message, 'extra columns'
-    assert_includes message, dump_column(generator, :type)
+    message = schema_error(schema_diffs).to_s
+    parts = [@table_name, 'extra columns',
+             dump_column(generator, :type),
 
-    assert_includes message, 'missing columns'
-    assert_includes message, dump_column(generator, :id)
-    assert_includes message, dump_column(generator, :first_name)
+             @table_name, 'missing columns',
+             [dump_column(exp_generator, :organization_id),
+              dump_column(generator, :first_name)],
 
-    assert_includes message, 'mismatched columns'
-    assert_includes message, dump_column(generator, :created_at)
-    assert_includes message, dump_column(exp_generator, :created_at)
+             @table_name, 'mismatched columns',
+             [dump_column(generator, :created_at),
+              dump_column(exp_generator, :created_at)],
+
+             @table_name, 'extra indexes',
+             dump_index(generator, :created_at),
+
+             @table_name, 'mismatched indexes',
+             [dump_index(generator, [:first_name, :emails]),
+              dump_index(exp_generator, [:first_name, :emails])]]
+
+    assert_includes_with_order message, parts
   end
 end

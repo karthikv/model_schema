@@ -9,13 +9,11 @@ module ModelSchema
         db_generator = table_generator
         exp_generator = db.create_table_generator(&block)
         
-        # TODO: remove default_elem?
-
-        check_all(FIELD_COLUMNS, :db_generator => db_generator,
-                                 :exp_generator => exp_generator,
-                                 :default_elem => DEFAULT_COL)
-        # TODO: check indexes
-        # TODO: no indexes option
+        # TODO disable index option
+        schema_errors = check_all(FIELD_COLUMNS, db_generator, exp_generator) +
+                        check_all(FIELD_INDEXES, db_generator, exp_generator)
+        
+        raise SchemaError.new(table_name, schema_errors) if schema_errors.length > 0
       end
 
       private
@@ -65,18 +63,9 @@ module ModelSchema
         db_generator
       end
 
-      # Check if db_generator.[attr_name] matches exp_generator.[attr_name],
-      # where attr_name is either columns, constraints, or indexes.
-      #
-      # field: what to check: :columns, :constraints, or :indexes
-      # opts:
-      #   :db_generator => db table generator
-      #   :exp_generator => expected table generator
-      #   :default_elem => default column, constraint, or index element
-      def check_all(field, opts)
-        db_generator, exp_generator = opts.values_at(:db_generator, :exp_generator)
-        default_elem = opts[:default_elem]
-
+      # Check if db_generator and exp_generator match for the given field
+      # (FIELD_COLUMNS for columns or FIELD_INDEXES for indexes).
+      def check_all(field, db_generator, exp_generator)
         # To find an accurate diff, we perform two passes on exp_array. In the
         # first pass, we find perfect matches between exp_array and db_array,
         # deleting the corresponding elements. In the second pass, for each
@@ -96,8 +85,7 @@ module ModelSchema
             check_single(field, :db_generator => db_generator,
                                 :exp_generator => exp_generator,
                                 :db_elem => db_elem,
-                                :exp_elem => exp_elem,
-                                :default_elem => default_elem)
+                                :exp_elem => exp_elem)
           end
 
           index = diffs.find_index(nil)
@@ -121,8 +109,7 @@ module ModelSchema
             schema_diffs << check_single(field, :db_generator => db_generator,
                                                 :exp_generator => exp_generator,
                                                 :db_elem => db_array[index],
-                                                :exp_elem => exp_elem,
-                                                :default_elem => default_elem)
+                                                :exp_elem => exp_elem)
             db_array.delete_at(index)
           else
             # add missing diff, since no db_elem is deemed close enough
@@ -141,20 +128,20 @@ module ModelSchema
                            :elem => db_elem}
         end
 
-        raise SchemaError.new(table_name, schema_diffs) if schema_diffs.length > 0
+        schema_diffs
       end
 
-      # Returns the index of an element in db_array that closely matches exp_elem.
+      # Returns the index of an element in db_array that closely matches exp_elem,
+      # or nil if no such element exists.
       def find_close_match(field, exp_elem, db_array)
-        attr = case field
-               when FIELD_COLUMNS
-                 :name
-               when FIELD_INDEXES
-                 :columns
-               when FIELD_CONSTRAINTS
-                 :check
-               end
-        db_array.find_index {|e| e[attr] == exp_elem[attr]}
+        case field
+        when FIELD_COLUMNS
+          db_array.find_index {|e| e[:name] == exp_elem[:name]}
+        when FIELD_INDEXES
+          db_array.find_index do |e|
+            e[:name] == exp_elem[:name] || e[:columns] == exp_elem[:columns]
+          end
+        end
       end
 
       # Check if the given database element matches the expected element.
@@ -165,44 +152,47 @@ module ModelSchema
       #   :exp_generator => expected table generator
       #   :db_elem => column, constraint, or index from db_generator
       #   :exp_elem => column, constraint, or index from exp_generator
-      #   :default_elem => default column, constraint, or index element
       def check_single(field, opts)
         db_generator, exp_generator = opts.values_at(:db_generator, :exp_generator)
-        db_original_elem, exp_original_elem = opts.values_at(:db_elem, :exp_elem)
-        default_elem = opts[:default_elem]
-
-        db_elem = default_elem.merge(db_original_elem)
-        exp_elem = default_elem.merge(exp_original_elem)
+        db_elem, exp_elem = opts.values_at(:db_elem, :exp_elem)
 
         error = {:field => field,
                  :type => SchemaError::TYPE_MISMATCH,
                  :db_generator => db_generator,
                  :exp_generator => exp_generator,
-                 :db_elem => db_original_elem,
-                 :exp_elem => exp_original_elem}
-        return error if db_elem.length != exp_elem.length
+                 :db_elem => db_elem,
+                 :exp_elem => exp_elem}
 
         # db_elem and exp_elem now have the same keys; compare then
         case field
-        when :columns
+        when FIELD_COLUMNS
+          db_elem_defaults = DEFAULT_COL.merge(db_elem)
+          exp_elem_defaults = DEFAULT_COL.merge(exp_elem)
+          return error if db_elem_defaults.length != exp_elem_defaults.length
+
           type_literal = db.method(:type_literal)
           # already accounted for in type check
           keys_accounted_for = [:text, :fixed, :size, :serial]
 
-          match = db_elem.all? do |key, value|
+          match = db_elem_defaults.all? do |key, value|
             if key == :type
               # types could either be strings or ruby types; normalize them
-              type_literal.call(db_elem).to_s == type_literal.call(exp_elem).to_s
+              db_type = type_literal.call(db_elem_defaults).to_s
+              exp_type = type_literal.call(exp_elem_defaults).to_s
+              db_type == exp_type
             elsif keys_accounted_for.include?(key)
               true
             else
-              value == exp_elem[key]
+              value == exp_elem_defaults[key]
             end
           end
 
-        when :indexes
-        when :constraints
-          match = db_elem.all? {|key, value| value == exp_elem[key]}
+        when FIELD_INDEXES
+          db_elem_defaults = DEFAULT_INDEX.merge(db_elem)
+          exp_elem_defaults = DEFAULT_INDEX.merge(exp_elem)
+
+          db_elem_defaults.delete(:name) if !exp_elem_defaults[:name]
+          match = db_elem_defaults.all? {|key, value| value == exp_elem_defaults[key]}
         end
 
         match ? nil : error

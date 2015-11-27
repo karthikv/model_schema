@@ -22,7 +22,9 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency('rake', '~> 10.0')
   spec.add_development_dependency('minitest')
   spec.add_development_dependency('minitest-hooks')
+  spec.add_development_dependency('pg')
   spec.add_development_dependency('pry')
+  spec.add_development_dependency('awesome_print')
 
   spec.add_runtime_dependency('sequel')
 end

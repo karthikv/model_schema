@@ -14,7 +14,10 @@ module ModelSchema
     end
 
     def dump_single(field, generator, elem)
-      index = generator.send(field).find_index(elem)
+      array = generator.send(field)
+      index = array.find_index(elem)
+      fail ArgumentError, "#{elem.inspect} not part of #{array.inspect}" if !index
+
       lines = generator.send(:"dump_#{field}").lines.map(&:strip)
       lines[index]
     end
@@ -69,7 +72,7 @@ module ModelSchema
          dump_missing_diffs(field),
          dump_mismatch_diffs(field)]
       end
-      parts.compact.join("\n")
+      "\n\n" + parts.compact.join("\n")
     end
   end
 end
