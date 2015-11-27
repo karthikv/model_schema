@@ -62,6 +62,17 @@ class PluginTest < BaseTest
     end
   end
 
+  def test_simple_schema_no_indexes
+    simple_table = create_simple_table
+
+    Class.new(Sequel::Model(simple_table)) do
+      model_schema(:indexes => false) do
+        varchar :name, :size => 50
+        column :value, 'integer', :null => false
+      end
+    end
+  end
+
   def test_simple_schema_extra_col
     simple_table = create_simple_table
 

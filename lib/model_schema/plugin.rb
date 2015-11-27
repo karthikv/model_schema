@@ -9,9 +9,10 @@ module ModelSchema
         db_generator = table_generator
         exp_generator = db.create_table_generator(&block)
         
-        # TODO disable index option
-        schema_errors = check_all(FIELD_COLUMNS, db_generator, exp_generator) +
-                        check_all(FIELD_INDEXES, db_generator, exp_generator)
+        schema_errors = check_all(FIELD_COLUMNS, db_generator, exp_generator)
+        if options[:indexes] != false
+          schema_errors += check_all(FIELD_INDEXES, db_generator, exp_generator)
+        end
         
         raise SchemaError.new(table_name, schema_errors) if schema_errors.length > 0
       end
