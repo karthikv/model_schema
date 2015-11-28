@@ -101,7 +101,7 @@ a `ModelSchema::SchemaError`, notifying you of any inconsistencies.
 
 You may pass an optional hash to `model_schema` with the following options:
 
-`disable`: `true` to disable all schema checks, `false` otherwise
+`disable`: `true` to disable all schema checks, `false` otherwise  
 `no_indexes`: `true` to disable schema checks for indexes (columns will still
 be checked), `false` otherwise
 
@@ -170,9 +170,9 @@ module SomeModule
 end
 ```
 
-By default, `dump_model_schema` assumes a tab size of 2 spaces, but you change
-this with the `-t` option. Pass an integer representing the number of spaces,
-or 0 if you want to use hard tabs.
+By default, `dump_model_schema` assumes a tab size of 2 spaces, but you can
+change this with the `-t` option. Pass an integer representing the number of
+spaces, or 0 if you want to use hard tabs.
 
 You may see help text with `dump_model_schema -h` and view the version of
 ModelSchema with `dump_model_schema -v`.
@@ -203,7 +203,7 @@ ModelSchema has a few notable limitations:
   end
   ```
 
-  We have to separate the columns from the indexes, since the schema dumper
+  You have to separate the columns from the indexes, since the schema dumper
   reads them independently of one another.
 
 - It relies on Sequel's [schema dumper extension](http://sequel.jeremyevans.net/rdoc/files/doc/migration_rdoc.html#label-Dumping+the+current+schema+as+a+migration)
@@ -232,9 +232,15 @@ ModelSchema has a few notable limitations:
 After cloning this repository, execute `bundle` to install dependencies. You
 may run tests with `rake test`, and open up a REPL using `bin/repl`.
 
+Note that tests require access to a Postgres database. Set the environment
+variable `DB_URL` to a Postgres connection string (e.g.
+`postgres://localhost:5432/model_schema`) prior to running tests. See
+[connecting to a database](http://sequel.jeremyevans.net/rdoc/files/doc/opening_databases_rdoc.html)
+for information about connection strings.
+
 To install this gem onto your local machine, run `bundle exec rake install`.
 
 Any bug reports and pull requests are welcome.
 
 ## License
-See the [LICENSE.txt](blob/master/LICENSE.txt) file.
+See the [LICENSE.txt](LICENSE.txt) file.
