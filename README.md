@@ -130,7 +130,7 @@ the `dump_model_schema` executable. It will automatically dump an up-to-date
 `model_schema` block in each Sequel Model class. Use it like so:
 
 ```sh
-$ dump_model_schema -m [model_file] -c [connection_string]
+$ dump_model_schema -c [connection_string] model_file [model_file ...]
 ```
 
 where `model_file` is a path to a ruby file that contains a single Sequel
@@ -138,10 +138,10 @@ Model, and `connection_string` is the database connection string to pass to
 `Sequel.connect()`.
 
 `dump_model_schema` will insert a `model_schema` block right after the
-definition of the Sequel Model class. Specifically, it looks for a line of the
-form `class SomeClassName < Sequel::Model(:table_name)`, and inserts a valid
-schema for table `table_name` directly after that line. Note that
-`dump_model_schema` overwrites the model file.
+definition of the Sequel Model class in `model_file`. Specifically, it looks
+for a line of the form `class SomeClassName < Sequel::Model(:table_name)`, and
+inserts a valid schema for table `table_name` directly after that line. Note
+that `dump_model_schema` overwrites `model_file`.
 
 For instance, say you had a file `items.rb` that looks like this:
 
@@ -155,7 +155,7 @@ end
 If you run:
 
 ```sh
-$ dump_model_schema -m items.rb -c [connection_string]
+$ dump_model_schema -c [connection_string] items.rb
 ```
 
 `items.rb` might now look like:
@@ -178,6 +178,13 @@ end
 By default, `dump_model_schema` assumes a tab size of 2 spaces, but you can
 change this with the `-t` option. Pass an integer representing the number of
 spaces, or 0 if you want to use hard tabs.
+
+You may specify multiple `model_file`s as distinct arguments, and each will
+have its `model_schema` dumped. This can be done easily with shell expansion:
+
+```sh
+$ dump_model_schema -c [connection_string] models/*.rb
+```
 
 You may see help text with `dump_model_schema -h` and view the version of
 ModelSchema with `dump_model_schema -v`.
