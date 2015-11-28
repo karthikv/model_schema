@@ -1,7 +1,7 @@
 # ModelSchema [![Build Status](https://travis-ci.org/karthikv/model_schema.svg?branch=master)](https://travis-ci.org/karthikv/model_schema)
 ModelSchema lets you annotate a [Sequel](https://github.com/jeremyevans/sequel/)
-Model with its expected schema (columns and indexes). Instead of seeing
-a Sequel Model file that looks like this:
+Model with its expected schema and immediately identify inconsistencies.
+Instead of seeing a Sequel Model file that looks like this:
 
 ```rb
 class User < Sequel::Model(:users)
