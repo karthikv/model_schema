@@ -133,7 +133,7 @@ the `dump_model_schema` executable. It will automatically dump an up-to-date
 $ dump_model_schema -c [connection_string] model_file [model_file ...]
 ```
 
-where `model_file` is a path to a ruby file that contains a single Sequel
+where `model_file` is a path to a Ruby file that contains a single Sequel
 Model, and `connection_string` is the database connection string to pass to
 `Sequel.connect()`.
 
