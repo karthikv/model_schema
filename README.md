@@ -59,6 +59,11 @@ database inconsistencies before they cause problems. As a nice added benefit,
 ModelSchema lets you see a list of columns for a model directly within the
 class itself.
 
+## Support for ActiveRecord
+Currently, ModelSchema only works with [Sequel](https://github.com/jeremyevans/sequel/).
+If you'd like something similar for other Ruby ORMs, like ActiveRecord, please
+express your interest in [this issue](https://github.com/karthikv/model_schema/issues/1).
+
 ## Installation
 Add `model_schema` to your Gemfile:
 
