@@ -44,6 +44,12 @@ module ModelSchema
       db = Sequel.connect(opts[:connection])
       db.extension(:schema_dumper)
 
+      if db.is_a?(Sequel::Postgres::Database)
+        # include all Postgres type extensions so schema dumps are accurate
+        db.extension(:pg_array, :pg_enum, :pg_hstore, :pg_inet, :pg_json,
+                     :pg_range, :pg_row)
+      end
+
       had_error = false
       model_files.each do |path|
         begin
