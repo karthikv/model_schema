@@ -2,3 +2,10 @@ language: ruby
 rvm:
   - 2.1.5
 before_install: gem install bundler -v 1.10.6
+
+services:
+  - postgresql
+before_script:
+  - psql -c 'create database model_schema;' -U postgres
+env:
+  - DB_URL=postgres://localhost:5432/model_schema
