@@ -19,7 +19,6 @@ class PluginTest < BaseTest
   def before_all
     @db = Sequel::Database.connect(ENV['DB_URL'])
     Sequel::Model.plugin(ModelSchema::Plugin)
-    @db.cache_schema = false
   end
 
   def around

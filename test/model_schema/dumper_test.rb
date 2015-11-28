@@ -4,8 +4,6 @@ class DumperTest < BaseTest
   def before_all
     @db_url = ENV['DB_URL']
     @db = Sequel::Database.connect(@db_url)
-    Sequel::Model.plugin(ModelSchema::Plugin)
-    @db.cache_schema = false
   end
 
   def around

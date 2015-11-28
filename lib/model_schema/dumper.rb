@@ -57,6 +57,7 @@ module ModelSchema
 
       klass = Class.new(Sequel::Model(model_info[:table_name]))
       klass.db = db
+      klass.plugin(ModelSchema::Plugin)
 
       # dump table generator given by model_schema
       generator = klass.send(:table_generator)
