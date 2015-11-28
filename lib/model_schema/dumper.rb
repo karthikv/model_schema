@@ -44,24 +44,25 @@ module ModelSchema
       db = Sequel.connect(opts[:connection])
       db.extension(:schema_dumper)
 
-      first_error = nil
+      had_error = false
       model_files.each do |path|
         begin
           dump_model_schema(db, path, opts)
         rescue StandardError, SystemExit => error
-          $stderr.puts error.message
-          first_error ||= error
+          # SystemExit error messages are already printed by abort()
+          $stderr.puts error.message if error.is_a?(StandardError)
+          had_error = true
         end
       end
 
-      exit 1 if first_error
+      exit 1 if had_error
     end
 
     # Dumps a valid model_schema into the given file path. Accepts options as
     # per the OptionParser above.
     def self.dump_model_schema(db, path, opts)
       model = parse_model_file(path)
-      abort "Couldn't find class that extends Sequel::Model" if !model
+      abort "In #{path}, couldn't find class that extends Sequel::Model" if !model
 
       klass = Class.new(Sequel::Model(model[:table_name]))
       klass.db = db
@@ -108,7 +109,7 @@ module ModelSchema
           if table_name[0] == ':'
             table_name = table_name[1..-1].to_sym
           else
-            abort "Can't find a symbol table name on line: #{line}"
+            abort "In #{path}, can't find a symbol table name in line: #{line}"
           end
 
           # indentation for model_schema block

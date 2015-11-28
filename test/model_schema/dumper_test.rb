@@ -36,7 +36,7 @@ class DumperTest < BaseTest
     end
 
     refute_nil error
-    assert_includes_with_order stderr, ['provide', 'model file']
+    assert_includes stderr, 'provide at least one model file'
   end
 
   def test_no_connection
@@ -191,7 +191,7 @@ class DumperTest < BaseTest
     end
 
     refute_nil error
-    assert_includes_with_order stderr, ["Couldn't find", 'Sequel::Model']
+    assert_includes stderr, "couldn't find class that extends Sequel::Model"
   end
 
   def test_dump_multiple_standard_error
