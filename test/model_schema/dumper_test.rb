@@ -1,9 +1,6 @@
 require 'test_helper'
-path = File.expand_path(File.dirname(__FILE__) +
-                        '/../../../bin/dump_model_schema')
-load path 
 
-class DumpModelSchemaTest < BaseTest
+class DumperTest < BaseTest
   def before_all
     @db_url = ENV['DB_URL']
     @db = Sequel::Database.connect(@db_url)
@@ -13,6 +10,10 @@ class DumpModelSchemaTest < BaseTest
 
   def around
     @db.transaction(:rollback => :always, :auto_savepoint => true) {super}
+  end
+
+  def dumper
+    ModelSchema::Dumper
   end
 
   def with_captured_stderr
@@ -30,7 +31,7 @@ class DumpModelSchemaTest < BaseTest
     error = nil
     stderr = with_captured_stderr do
       begin
-        main(['-c', @db_url])
+        dumper.run(['-c', @db_url])
       rescue SystemExit => e
         error = e
       end
@@ -44,7 +45,7 @@ class DumpModelSchemaTest < BaseTest
     error = nil
     stderr = with_captured_stderr do
       begin
-        main(['-m', 'some-model-file'])
+        dumper.run(['-m', 'some-model-file'])
       rescue SystemExit => e
         error = e
       end
@@ -122,7 +123,7 @@ class DumpModelSchemaTest < BaseTest
 
     Sequel.stubs(:connect).with(@db_url).returns(@db)
     File.expects(:write).with(path, contents)
-    main(['-c', @db_url, '-m', path])
+    dumper.run(['-c', @db_url, '-m', path])
   end
 
   def test_dump_simple_four_spaces
@@ -132,7 +133,7 @@ class DumpModelSchemaTest < BaseTest
 
     Sequel.stubs(:connect).with(@db_url).returns(@db)
     File.expects(:write).with(path, contents)
-    main(['-c', @db_url, '-m', path, '-t', '4'])
+    dumper.run(['-c', @db_url, '-m', path, '-t', '4'])
   end
 
   def test_dump_simple_hard_tab
@@ -145,7 +146,7 @@ class DumpModelSchemaTest < BaseTest
       assert_equal path, p
       assert_equal contents, c
     end
-    main(['-c', @db_url, '-m', path, '-t', '0'])
+    dumper.run(['-c', @db_url, '-m', path, '-t', '0'])
   end
 
   def test_dump_complex
@@ -158,6 +159,6 @@ class DumpModelSchemaTest < BaseTest
       assert_equal path, p
       assert_equal contents, c
     end
-    main(['-c', @db_url, '-m', path])
+    dumper.run(['-c', @db_url, '-m', path])
   end
 end
