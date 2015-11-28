@@ -1,7 +1,7 @@
 # ModelSchema
-ModelSchema lets you annotate a
-[Sequel](https://github.com/jeremyevans/sequel/) Model with its expected schema
-(columns/indexes). Instead of seeing a Sequel Model file that looks like this:
+ModelSchema lets you annotate a [Sequel](https://github.com/jeremyevans/sequel/)
+Model with its expected schema (columns and indexes). Instead of seeing
+a Sequel Model file that looks like this:
 
 ```rb
 class User < Sequel::Model(:users)

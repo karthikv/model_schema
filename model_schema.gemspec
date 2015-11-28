@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.summary = %(Enforced, Annotated Schema for Ruby Sequel Models)
   spec.description = %(Annotate a Sequel Model with its expected schema 
                        and immediately identify inconsistencies.).gsub(/\n\s+/, '')
-  spec.homepage = 'TODO'
+  spec.homepage = 'https://github.com/karthikv/model_schema'
   spec.license = 'MIT'
 
   spec.files = `git ls-files -z`.split("\x0").reject {|f| f.match(%r{^(test|spec|features)/})}
@@ -22,7 +22,6 @@ Gem::Specification.new do |spec|
 
   spec.add_development_dependency('bundler', '~> 1.10')
   spec.add_development_dependency('rake', '~> 10.0')
-  # TODO add more specific versions
   spec.add_development_dependency('minitest')
   spec.add_development_dependency('minitest-hooks')
   spec.add_development_dependency('mocha')
