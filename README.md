@@ -119,6 +119,64 @@ Note that you can disable ModelSchema in two ways: either pass `:disable =>
 true` to the `model_schema` method, or set the environment variable
 `DISABLE_MODEL_SCHEMA=1` .
 
+## Bootstrap Existing Project
+To help bootstrap existing projects that don't yet use ModelSchema, you can use
+the `dump_model_schema` executable. It will automatically dump an up-to-date
+`model_schema` block in each Sequel Model class. Use it like so:
+
+```sh
+$ dump_model_schema -m [model_file] -c [connection_string]
+```
+
+where `model_file` is a path to a ruby file that contains a single Sequel
+Model, and `connection_string` is the database connection string to pass to
+`Sequel.connect()`.
+
+`dump_model_schema` will insert a `model_schema` block right after the
+definition of the Sequel Model class. Specifically, it looks for a line of the
+form `class SomeClassName < Sequel::Model(:table_name)`, and inserts a valid
+schema for table `table_name` directly after that line. Note that
+`dump_model_schema` overwrites the model file.
+
+For instance, say you had a file `items.rb` that looks like this:
+
+```rb
+module SomeModule
+  class Item < Sequel::Model(:items)
+  end
+end
+```
+
+If you run:
+
+```sh
+$ dump_model_schema -m items.rb -c [connection_string]
+```
+
+`items.rb` might now look like:
+
+```rb
+module SomeModule
+  class Item < Sequel::Model(:items)
+    model_schema do
+      primary_key :id,
+
+      String :name, :null => false
+      Integer :quantity
+
+      index [:name], :name => :items_name_key
+    end
+  end
+end
+```
+
+By default, `dump_model_schema` assumes a tab size of 2 spaces, but you change
+this with the `-t` option. Pass an integer representing the number of spaces,
+or 0 if you want to use hard tabs.
+
+You may see help text with `dump_model_schema -h` and view the version of
+ModelSchema with `dump_model_schema -v`.
+
 ## Limitations
 ModelSchema has a few notable limitations:
 

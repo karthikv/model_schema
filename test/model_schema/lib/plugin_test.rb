@@ -19,7 +19,6 @@ class PluginTest < BaseTest
   def before_all
     @db = Sequel::Database.connect(ENV['DB_URL'])
     Sequel::Model.plugin(ModelSchema::Plugin)
-    Sequel::Model.db = @db
     @db.cache_schema = false
   end
 
@@ -27,21 +26,12 @@ class PluginTest < BaseTest
     @db.transaction(:rollback => :always, :auto_savepoint => true) {super}
   end
 
-  def create_simple_table
-    table_name = :simple
-    @db.create_table(table_name) do
-      String :name, :size => 50
-      Integer :value, :null => false
-      index :name, :unique => true
-    end
-
-    table_name
-  end
-
   def test_simple_schema
-    simple_table = create_simple_table
+    db = @db  # alias for use in class context below
+    simple_table = create_simple_table(db)
 
     Class.new(Sequel::Model(simple_table)) do
+      self.db = db
       model_schema do
         String :name, :size => 50
         Integer :value, :null => false
@@ -51,9 +41,11 @@ class PluginTest < BaseTest
   end
 
   def test_simple_schema_type_aliases
-    simple_table = create_simple_table
+    db = @db  # alias for use in class context below
+    simple_table = create_simple_table(db)
 
     Class.new(Sequel::Model(simple_table)) do
+      self.db = db
       model_schema do
         varchar :name, :size => 50
         column :value, 'integer', :null => false
@@ -63,9 +55,11 @@ class PluginTest < BaseTest
   end
 
   def test_simple_schema_no_indexes
-    simple_table = create_simple_table
+    db = @db  # alias for use in class context below
+    simple_table = create_simple_table(db)
 
     Class.new(Sequel::Model(simple_table)) do
+      self.db = db
       model_schema(:no_indexes => true) do
         varchar :name, :size => 50
         column :value, 'integer', :null => false
@@ -74,32 +68,41 @@ class PluginTest < BaseTest
   end
 
   def test_disable_simple_schema
-    simple_table = create_simple_table
+    db = @db  # alias for use in class context below
+    simple_table = create_simple_table(db)
 
     Class.new(Sequel::Model(simple_table)) do
+      self.db = db
       model_schema(:disable => true) {}
     end
   end
 
   def test_disable_simple_schema_env
     ENV[ModelSchema::DISABLE_MODEL_SCHEMA_KEY] = '1'
-    simple_table = create_simple_table
+    db = @db  # alias for use in class context below
+    simple_table = create_simple_table(db)
 
     Class.new(Sequel::Model(simple_table)) do
+      self.db = db
       model_schema {}
     end
     ENV.delete(ModelSchema::DISABLE_MODEL_SCHEMA_KEY)
   end
 
   def test_simple_schema_extra_col
-    simple_table = create_simple_table
+    db = @db  # alias for use in class context below
+    simple_table = create_simple_table(db)
 
     begin
       Class.new(Sequel::Model(simple_table)) do
+        self.db = db
         model_schema {}
       end
     rescue error_class => error
-      generator = Class.new(Sequel::Model(simple_table)).send(:table_generator)
+      klass = Class.new(Sequel::Model(simple_table))
+      klass.db = db
+      generator = klass.send(:table_generator)
+
       diffs = [create_extra_diff(field_columns, generator, :name => :name),
                create_extra_diff(field_columns, generator, :name => :value),
                create_extra_diff(field_indexes, generator, :columns => [:name])]
@@ -112,7 +115,8 @@ class PluginTest < BaseTest
   end
 
   def test_simple_schema_missing_col
-    simple_table = create_simple_table
+    db = @db  # alias for use in class context below
+    simple_table = create_simple_table(db)
 
     table_proc = proc do
       String :name, :size => 50
@@ -123,10 +127,11 @@ class PluginTest < BaseTest
       DateTime :completed_at
       index :value, :where => {:is_valid => true}
     end
-    generator = @db.create_table_generator(&table_proc)
+    generator = db.create_table_generator(&table_proc)
 
     begin
       Class.new(Sequel::Model(simple_table)) do
+        self.db = db
         model_schema(&table_proc)
       end
     rescue error_class => error
@@ -142,21 +147,26 @@ class PluginTest < BaseTest
   end
 
   def test_simple_schema_mismatch_col
-    simple_table = create_simple_table
+    db = @db  # alias for use in class context below
+    simple_table = create_simple_table(db)
 
     table_proc = proc do
       String :name, :size => 50, :default => true
       primary_key :value
       index :name
     end
-    exp_generator = @db.create_table_generator(&table_proc)
+    exp_generator = db.create_table_generator(&table_proc)
 
     begin
       Class.new(Sequel::Model(simple_table)) do
+        self.db = db
         model_schema(&table_proc)
       end
     rescue error_class => error
-      db_generator = Class.new(Sequel::Model(simple_table)).send(:table_generator)
+      klass = Class.new(Sequel::Model(simple_table))
+      klass.db = db
+      db_generator = klass.send(:table_generator)
+
       diffs = [create_mismatch_diff(field_columns, db_generator, exp_generator,
                                     :name => :name),
                create_mismatch_diff(field_columns, db_generator, exp_generator,
@@ -171,44 +181,12 @@ class PluginTest < BaseTest
     end
   end
 
-  def create_complex_table
-    # other table for referencing
-    @db.create_table(:others) do
-      primary_key :id
-      Integer :value
-    end
-
-    table_name = :complex
-    @db.create_table(table_name) do
-      primary_key :id
-      foreign_key :other_id, :others, :null => false, :on_delete => :cascade
-
-      String :name
-      String :location, :fixed => true, :size => 50
-      String :legal_name, :size => 200
-      String :advisor, :text => true
-
-      BigDecimal :amount, :size => 10
-      Integer :value, :null => false, :unique => true
-
-      column :advisors, 'varchar(255)[]', :null => false
-      column :interests, 'text[]', :null => false, :index => {:name => :int_index}
-
-      TrueClass :is_right
-
-      Time :created_at, :null => false
-      Time :updated_at, :only_time => true
-
-      index [:other_id, :name]
-    end
-
-    table_name
-  end
-
   def test_complex_schema
-    complex_table = create_complex_table
+    db = @db  # alias for use in class context below
+    complex_table = create_complex_table(db)
 
     Class.new(Sequel::Model(complex_table)) do
+      self.db = db
       model_schema do
         primary_key :id
         foreign_key :other_id, :others, :null => false, :on_delete => :cascade
@@ -237,7 +215,8 @@ class PluginTest < BaseTest
   end
 
   def test_complex_schema_many_errors_integration
-    complex_table = create_complex_table
+    db = @db  # alias for use in class context below
+    complex_table = create_complex_table(db)
 
     table_proc = proc do
       primary_key :id, :serial => true  # correct; serial is implied
@@ -271,14 +250,18 @@ class PluginTest < BaseTest
 
       # db has extra value index
     end
-    exp_generator = @db.create_table_generator(&table_proc)
+    exp_generator = db.create_table_generator(&table_proc)
 
     begin
       Class.new(Sequel::Model(complex_table)) do
+        self.db = db
         model_schema(&table_proc)
       end
     rescue error_class => error
-      db_generator = Class.new(Sequel::Model(complex_table)).send(:table_generator)
+      klass = Class.new(Sequel::Model(complex_table))
+      klass.db = db
+
+      db_generator = klass.send(:table_generator)
       complex_table_str = complex_table.to_s
 
       parts = [complex_table_str, 'extra columns',
