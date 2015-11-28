@@ -36,14 +36,14 @@ class DumperTest < BaseTest
     end
 
     refute_nil error
-    assert_includes stderr, 'provide a model'
+    assert_includes_with_order stderr, ['provide', 'model file']
   end
 
   def test_no_connection
     error = nil
     stderr = with_captured_stderr do
       begin
-        dumper.run(['-m', 'some-model-file'])
+        dumper.run(['some-model-file'])
       rescue SystemExit => e
         error = e
       end
@@ -54,7 +54,7 @@ class DumperTest < BaseTest
   end
 
   def write_model(table_name)
-    path = 'model_schema/simple_table'
+    path = "model_schema/#{table_name}"
     contents = ['# A simple model for a simple table',
                 'module SomeApp',
                 '  module Models',
@@ -114,37 +114,34 @@ class DumperTest < BaseTest
      'end'].join("\n")
   end
 
-  def test_dump_simple
+  def set_up_dump_simple(tab)
     simple_table = create_simple_table(@db)
     path = write_model(simple_table)
-    contents = expected_simple_model(simple_table, '  ')
-
-    Sequel.stubs(:connect).with(@db_url).returns(@db)
-    File.expects(:write).with(path, contents)
-    dumper.run(['-c', @db_url, '-m', path])
-  end
-
-  def test_dump_simple_four_spaces
-    simple_table = create_simple_table(@db)
-    path = write_model(simple_table)
-    contents = expected_simple_model(simple_table, '    ')
-
-    Sequel.stubs(:connect).with(@db_url).returns(@db)
-    File.expects(:write).with(path, contents)
-    dumper.run(['-c', @db_url, '-m', path, '-t', '4'])
-  end
-
-  def test_dump_simple_hard_tab
-    simple_table = create_simple_table(@db)
-    path = write_model(simple_table)
-    contents = expected_simple_model(simple_table, "\t")
+    contents = expected_simple_model(simple_table, tab)
 
     Sequel.stubs(:connect).with(@db_url).returns(@db)
     File.expects(:write).with do |p, c|
       assert_equal path, p
       assert_equal contents, c
+      true
     end
-    dumper.run(['-c', @db_url, '-m', path, '-t', '0'])
+    
+    path
+  end
+
+  def test_dump_simple
+    path = set_up_dump_simple('  ')
+    dumper.run(['-c', @db_url, path])
+  end
+
+  def test_dump_simple_four_spaces
+    path = set_up_dump_simple('    ')
+    dumper.run(['-c', @db_url, '-t', '4', path])
+  end
+
+  def test_dump_simple_hard_tab
+    path = set_up_dump_simple("\t")
+    dumper.run(['-c', @db_url, '-t', '0', path])
   end
 
   def test_dump_complex
@@ -156,7 +153,62 @@ class DumperTest < BaseTest
     File.expects(:write).with do |p, c|
       assert_equal path, p
       assert_equal contents, c
+      true
     end
-    dumper.run(['-c', @db_url, '-m', path])
+
+    dumper.run(['-c', @db_url, path])
+  end
+
+  def test_dump_multiple
+    simple_table = create_simple_table(@db)
+    complex_table = create_complex_table(@db)
+
+    simple_path = write_model(simple_table)
+    complex_path = write_model(complex_table)
+
+    simple_contents = expected_simple_model(simple_table, '  ')
+    complex_contents = expected_complex_model(complex_table)
+
+    Sequel.stubs(:connect).with(@db_url).returns(@db)
+    File.expects(:write).with(simple_path, simple_contents)
+    File.expects(:write).with(complex_path, complex_contents)
+
+    dumper.run(['-c', @db_url, simple_path, complex_path])
+  end
+
+  def test_dump_multiple_abort_error
+    path = set_up_dump_simple('  ')
+    other_path = 'model_schema/other_path'
+    File.stubs(:read).with(other_path).returns("Some bogus\n\tmodel\n\tfile")
+
+    error = nil
+    stderr = with_captured_stderr do
+      begin
+        dumper.run(['-c', @db_url, other_path, path])
+      rescue SystemExit => e
+        error = e
+      end
+    end
+
+    refute_nil error
+    assert_includes_with_order stderr, ["Couldn't find", 'Sequel::Model']
+  end
+
+  def test_dump_multiple_standard_error
+    path = set_up_dump_simple('  ')
+    other_path = 'model_schema/non_existent_path'
+    File.stubs(:read).with(other_path).raises(Errno::ENOENT)
+
+    error = nil
+    stderr = with_captured_stderr do
+      begin
+        dumper.run(['-c', @db_url, other_path, path])
+      rescue SystemExit => e
+        error = e
+      end
+    end
+
+    refute_nil error
+    assert_includes stderr, "No such file"
   end
 end

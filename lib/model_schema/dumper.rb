@@ -11,11 +11,8 @@ module ModelSchema
       opts[:tabbing] = 2
 
       parser = OptionParser.new do |p|
-        p.banner = "Usage: dump_model_schema [options]"
-
-        p.on('-m', '--model MODEL', 'Model file to dump schema in') do |model|
-          opts[:model] = model
-        end
+        p.banner = 'Usage: dump_model_schema [options] model_file [model_file ...]'
+        p.separator "\nDumps a valid model_schema block in each given model_file.\n\n"
 
         p.on('-c', '--connection CONNECTION',
              'Connection string for database') do |connection|
@@ -38,24 +35,35 @@ module ModelSchema
         end
       end
 
-      parser.parse(args)
+      model_files = parser.parse(args)
 
       # model and connection are required
-      abort 'Must provide a model file with -m or --model.' if !opts[:model]
+      abort 'Must provide at least one model file.' if model_files.empty?
       abort 'Must provide a connection string with -c or --connection.' if !opts[:connection]
-
-      dump_model_schema(opts)
-    end
-
-    # Dumps the model schema based on the given options (see option parsing above).
-    def self.dump_model_schema(opts)
-      model_info = parse_model_file(opts[:model])
-      abort "Couldn't find class that extends Sequel::Model" if !model_info
 
       db = Sequel.connect(opts[:connection])
       db.extension(:schema_dumper)
 
-      klass = Class.new(Sequel::Model(model_info[:table_name]))
+      first_error = nil
+      model_files.each do |path|
+        begin
+          dump_model_schema(db, path, opts)
+        rescue StandardError, SystemExit => error
+          $stderr.puts error.message
+          first_error ||= error
+        end
+      end
+
+      exit 1 if first_error
+    end
+
+    # Dumps a valid model_schema into the given file path. Accepts options as
+    # per the OptionParser above.
+    def self.dump_model_schema(db, path, opts)
+      model = parse_model_file(path)
+      abort "Couldn't find class that extends Sequel::Model" if !model
+
+      klass = Class.new(Sequel::Model(model[:table_name]))
       klass.db = db
       klass.plugin(ModelSchema::Plugin)
 
@@ -66,7 +74,7 @@ module ModelSchema
 
       # account for indentation
       tab = opts[:tabbing] == 0 ? "\t" : ' ' * opts[:tabbing]
-      schema_indentation = model_info[:indentation] + tab
+      schema_indentation = model[:indentation] + tab
       command_indentation = schema_indentation + tab
 
       commands = commands.lines.map {|l| l == "\n" ? l : command_indentation + l}.join
@@ -76,8 +84,8 @@ module ModelSchema
                     "#{commands}\n",
                     "#{schema_indentation}end\n"]
 
-      lines = model_info[:lines_before] + dump_lines + model_info[:lines_after]
-      File.write(opts[:model], lines.join)
+      lines = model[:lines_before] + dump_lines + model[:lines_after]
+      File.write(path, lines.join)
     end
 
     # Parses the model file at the given path, returning a hash of the form:
