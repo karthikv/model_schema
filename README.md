@@ -79,7 +79,7 @@ Require `model_schema` and register the plugin with Sequel:
 
 ```rb
 require 'model_schema'
-Sequel.plugin(ModelSchema::Plugin)
+Sequel::Model.plugin(ModelSchema::Plugin)
 ```
 
 Then, in each model where you'd like to use ModelSchema, introduce a call to
